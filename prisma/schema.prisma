@@ -1,0 +1,77 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model user {
+  id            Int                @id @default(autoincrement())
+  googleId      String?
+  email         String             @unique
+  password      String?
+  tfaStatus     TfaStatusEnum      @default(init)
+  tfaSecret     String?
+  role          Role?
+  apiKeys       api_key[]          @relation("userApiKeys")
+  user_policies user_policy[]      @relation("userPolicies")
+  permissions   PermissionsType[]  @default([])
+  facebookId    String?
+  recoveryCode  String?
+  githubId      String?
+  microsoftId   String?
+}
+
+model api_key {
+  id     Int                      @id @default(autoincrement())
+  key    String
+  userId Int
+  user   user                     @relation("userApiKeys", fields: [userId], references: [id])
+}
+
+model user_policy {
+  id            Int               @id @default(autoincrement())
+  userId        Int               
+  policyId      Int
+  user          user              @relation("userPolicies", fields: [userId], references: [id])
+  policy        policy            @relation("policyUsers", fields: [policyId], references: [id])
+}
+
+model policy {
+  id            Int               @id @default(autoincrement())
+  name          String
+  statement     Json
+  createdBy     Int
+  policy_users  user_policy[]     @relation("policyUsers")
+  startTime     DateTime?
+  endTime       DateTime?
+}
+
+model webhook {
+  id            Int               @id @default(autoincrement())
+  url           String
+  api_key       String
+  api           String
+}
+
+enum TfaStatusEnum {
+  init
+  enable
+  disable
+}
+
+enum Role {
+  regular
+  admin
+}
+
+enum PermissionsType {
+  create_coffee
+  update_coffee
+  delete_coffee
+}
