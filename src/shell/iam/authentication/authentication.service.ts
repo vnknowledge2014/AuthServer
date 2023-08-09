@@ -61,7 +61,6 @@ import { IActiveUserData } from 'src/shell/interfaces';
 import { toDataURL } from 'qrcode';
 
 const jwtService = new JwtService();
-// const jwtConfiguration = jwtConfig();
 
 export async function cfnSignUp(sign_up_schema: TSignUpSchema) {
   const { email, password } = sign_up_schema;
@@ -100,8 +99,16 @@ export async function cfnSignIn(
         : TE_left(new NotFoundException('User is not found')),
     ),
     TE_chain((user) => {
-      pfnComparePassword(user.password, password);
-      return TE_of(user);
+      return TE_tryCatch(
+        async () => {
+          await pfnComparePassword(password, user.password);
+
+          return user;
+        },
+        (err) => {
+          throw err;
+        },
+      );
     }),
     TE_chain((user) => cfnVerifyTfaCode(user, tfa_code)),
     TE_chain(
@@ -329,8 +336,16 @@ export async function cfnSignInRecovery(
   return await pipe(
     cfnCheckExistUser({ email }),
     TE_chain((user) => {
-      pfnComparePassword(user.password, password);
-      return TE_of(user);
+      return TE_tryCatch(
+        async () => {
+          await pfnComparePassword(password, user.password);
+
+          return user;
+        },
+        (err) => {
+          throw err;
+        },
+      );
     }),
     TE_chain((user) => {
       const encrypted_recovery_code = pfnEncrypt(recovery_code.toString());
@@ -593,19 +608,12 @@ function cfnCheckExistUser(conditions: Prisma.userWhereInput) {
   );
 }
 
-function pfnComparePassword(hashed_password: string, password: string) {
-  return TE_tryCatch(
-    async () => {
-      const is_equal = await pfnCompare(hashed_password, password);
+async function pfnComparePassword(password: string, hashed_password: string) {
+  const is_equal = await pfnCompare(password, hashed_password);
 
-      if (!is_equal) {
-        throw new BadRequestException('Incorrect password');
-      }
-    },
-    (err) => {
-      throw err;
-    },
-  );
+  if (!is_equal) {
+    throw new BadRequestException('Incorrect password');
+  }
 }
 
 function cfnGenAuthTokens(user: UserModel, refresh_token_id: string) {

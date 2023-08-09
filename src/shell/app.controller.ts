@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { AppService } from './app.service';
 import { AuthType } from './enums';
 import { Auth } from './decorators';
@@ -6,6 +6,11 @@ import { PermissionsType, Role } from '@prisma/client';
 import { Roles, Permissions, Policies } from './iam/authorization/decorators';
 import { cfnSetI18nFile } from 'src/shared';
 import { EPermissionAction } from 'src/core/iam/authorization/constants';
+import { CustomValidation } from './pipes';
+import {
+  SignInSchema,
+  TSignInSchema,
+} from 'src/core/iam/authentication/schemas';
 
 @Controller()
 export class AppController {
@@ -61,5 +66,13 @@ export class AppController {
   @Get('auth-api-key')
   getHelloAuthApiKey(): string {
     return this.appService.getHello();
+  }
+
+  @Auth(AuthType.None)
+  @Post('hasura-login')
+  async hasuraLogin(
+    @Body(new CustomValidation(SignInSchema)) sign_in_schema: TSignInSchema,
+  ) {
+    return this.appService.hasuraLogin(sign_in_schema);
   }
 }
